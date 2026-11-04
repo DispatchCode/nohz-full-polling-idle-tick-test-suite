@@ -1,0 +1,15 @@
+# Userspace binaries
+nohz_user_tick_test/nohz_user_tick
+nohz_dep_test/nohz_dep_test
+
+# Module build output
+*.o
+*.ko
+*.mod
+*.mod.c
+.*.cmd
+Module.symvers
+modules.order
+
+# Kernel images and per-kernel modules kept next to the suite
+bzImage-*
