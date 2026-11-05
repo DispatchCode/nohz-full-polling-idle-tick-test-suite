@@ -14,6 +14,8 @@ after every wakeup. The patches under test:
   so that `cpu_idle_poll()` returns and the tick is re-evaluated. Without
   this, a timer enqueued while polling with the tick stopped is not
   programmed until something else wakes the CPU up;
+- re-evaluate the tick when a stopped tick expires in polling idle, so that
+  timers that were already queued get programmed in turn;
 - stop the tick on return to userspace when it was left running in the
   kernel.
 
@@ -110,6 +112,7 @@ pass on any kernel, and T4 is skipped.
 | **T2** timer remote enqueue | A `timer_list` timer is armed from the housekeeping CPU on the polling CPU | none lost, at most 50ms late |
 | **T2** timer local enqueue | The timer is armed from a hardirq on the polling CPU itself, which sends a self-kick | none lost, at most 50ms late |
 | **T2** timer local enqueue, 1ms | Same, with a timer due within a jiffy | none lost, at most 50ms late |
+| **T2** two queued timers | Two timers armed together from the housekeeping CPU, at +10ms and +40ms. With the tick stopped only the first expiry is programmed: the second needs the tick to be re-evaluated after the first fires | none lost, at most 50ms late |
 | **T3** POSIX CPU timer dependency | Sleep/work cycles with `ITIMER_PROF` armed. CPU timers are only checked from the tick, so the tick must restart whenever the task runs | at least 80% of the expected `SIGPROF` |
 | **T3** scheduler dependency | Two CPU-bound tasks woken together on the idle CPU must get the tick back and share the CPU | each gets 35-65% of the CPU, with at least 5 preemptions |
 | **T4** housekeeping CPU unchanged | CPUs that are not `nohz_full` keep ticking while polling (needs `idle=poll`) | at least 2 ticks per 50ms sleep |
@@ -120,11 +123,12 @@ pass on any kernel, and T4 is skipped.
 
 With `idle=poll`:
 
-| Kernel | T1 | T2 local | Everything else |
-|--------|----|----------|-----------------|
-| Unpatched | FAIL: a tick in almost every window (the bug) | PASS: the tick runs while polling | PASS |
-| Tick stopped in polling idle, without the kick change | PASS | FAIL: timers lost or seconds late | PASS |
-| Full series | PASS | PASS | PASS |
+| Kernel | T1 | T2 local | T2 two queued timers | Everything else |
+|--------|----|----------|----------------------|-----------------|
+| Unpatched | FAIL: a tick in almost every window (the bug) | PASS: the tick runs while polling | PASS | PASS |
+| Tick stopped in polling idle, without the kick change | PASS | FAIL: timers lost or seconds late | FAIL | PASS |
+| Tick stopped and kick change, without re-evaluation on stopped tick expiry | PASS | PASS | FAIL: second timer lost or seconds late | PASS |
+| Full series | PASS | PASS | PASS | PASS |
 
 ## Reading the output
 

@@ -115,13 +115,13 @@ check_user_tick()
 	judge "$1" "$detail" [ "$user" -le $max ]
 }
 
-# check_timer <name> <cpu> <mode> <delay_ms> <iters>: timers armed on a
-# polling CPU fire on time
+# check_timer <name> <cpu> <mode> <delay_ms> <iters> [second_ms]: timers
+# armed on a polling CPU fire on time
 check_timer()
 {
 	before=$(dmesg | wc -l)
-	echo "### $1: insmod cpu=$2 mode=$3 delay_ms=$4 iters=$5" >> $LOG
-	if ! taskset -c "$HK" insmod "$KO" cpu="$2" mode="$3" delay_ms="$4" iters="$5" >> $LOG 2>&1; then
+	echo "### $1: insmod cpu=$2 mode=$3 delay_ms=$4 iters=$5 second_ms=${6:-0}" >> $LOG
+	if ! taskset -c "$HK" insmod "$KO" cpu="$2" mode="$3" delay_ms="$4" iters="$5" second_ms="${6:-0}" >> $LOG 2>&1; then
 		report "$1" FAIL "insmod failed (module built for another kernel?), see $LOG"
 		return
 	fi
@@ -293,6 +293,7 @@ check_user_tick "T1 user tick after idle" "$CPU" 200
 check_timer "T2 timer remote enqueue" "$CPU" remote 10 20
 check_timer "T2 timer local enqueue" "$CPU" local 10 20
 check_timer "T2 timer local enqueue, 1ms" "$CPU" local 1 20
+check_timer "T2 two queued timers" "$CPU" remote 10 10 30
 
 # T3: tick dependencies still restart the tick after idle
 check_prof "T3 POSIX CPU timer dependency"
